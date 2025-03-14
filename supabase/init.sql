@@ -109,25 +109,109 @@ create or replace trigger on_auth_user_created
 -- Insert sample course data
 insert into public.courses (title, description, image_url, level, duration, content) values
 (
-  'Introduction to Cybersecurity',
-  'Learn the fundamentals of cybersecurity and protect yourself online',
-  'https://images.unsplash.com/photo-1550751827-4bd374c3f58b',
+  'Digital Safety Basics',
+  'Essential digital safety skills for everyone - learn how to protect yourself online',
+  '/courses/digital-safety.svg',
   'Beginner',
   '2 hours',
   '{
     "modules": [
       {
         "id": "module1",
-        "title": "Understanding Cybersecurity Basics",
-        "content": "# Understanding Cybersecurity Basics\n\nIn this module, you will learn the fundamental concepts of cybersecurity...",
+        "title": "Understanding Online Safety",
+        "content": "# Understanding Online Safety\n\nIn this module, you will learn the fundamental concepts of staying safe online, including:\n\n- Creating strong passwords\n- Recognizing phishing attempts\n- Safe browsing practices\n- Protecting personal information\n\nWe will guide you through each concept with clear examples and practical tips.",
         "quiz": [
           {
-            "question": "What is the primary goal of cybersecurity?",
+            "question": "What makes a password strong?",
             "options": [
-              "To make computers faster",
-              "To protect systems and data from threats",
-              "To create better software",
-              "To improve internet speed"
+              "Using your birthday",
+              "Using a combination of letters, numbers, and symbols",
+              "Using your pet''s name",
+              "Using sequential numbers"
+            ],
+            "correctAnswer": 1
+          }
+        ]
+      }
+    ]
+  }'::jsonb
+),
+(
+  'Smartphone Security',
+  'Learn to use your smartphone securely and protect your privacy',
+  '/courses/smartphone-security.svg',
+  'Beginner',
+  '1.5 hours',
+  '{
+    "modules": [
+      {
+        "id": "module1",
+        "title": "Smartphone Privacy Settings",
+        "content": "# Securing Your Smartphone\n\nLearn how to:\n\n- Set up a secure lock screen\n- Manage app permissions\n- Back up your data safely\n- Use two-factor authentication\n\nThis module focuses on practical, step-by-step instructions.",
+        "quiz": [
+          {
+            "question": "Why is two-factor authentication important?",
+            "options": [
+              "It makes your phone faster",
+              "It adds an extra layer of security",
+              "It saves battery life",
+              "It improves signal strength"
+            ],
+            "correctAnswer": 1
+          }
+        ]
+      }
+    ]
+  }'::jsonb
+),
+(
+  'Email Safety & Scam Prevention',
+  'Identify and avoid email scams and protect your inbox',
+  '/courses/email-safety.svg',
+  'Beginner',
+  '2 hours',
+  '{
+    "modules": [
+      {
+        "id": "module1",
+        "title": "Recognizing Email Scams",
+        "content": "# Email Safety Essentials\n\nIn this comprehensive guide, you''ll learn:\n\n- How to identify suspicious emails\n- Common scam tactics to watch out for\n- Safe email practices\n- What to do if you suspect a scam\n\nProtect yourself and your loved ones from email-based threats.",
+        "quiz": [
+          {
+            "question": "What is a common sign of a phishing email?",
+            "options": [
+              "The sender has a professional email address",
+              "The email creates urgency and asks for immediate action",
+              "The email has a company logo",
+              "The email was received during business hours"
+            ],
+            "correctAnswer": 1
+          }
+        ]
+      }
+    ]
+  }'::jsonb
+),
+(
+  'Social Media Privacy',
+  'Navigate social media safely while protecting your privacy',
+  '/courses/social-media.svg',
+  'Intermediate',
+  '2.5 hours',
+  '{
+    "modules": [
+      {
+        "id": "module1",
+        "title": "Social Media Privacy Settings",
+        "content": "# Social Media Safety\n\nMaster the art of safe social media use:\n\n- Configure privacy settings\n- Understand what to share (and not to share)\n- Manage friend requests and connections\n- Protect your personal information\n\nStay connected while staying secure.",
+        "quiz": [
+          {
+            "question": "What information should you avoid sharing on social media?",
+            "options": [
+              "Your favorite movies",
+              "Your current vacation dates and location",
+              "Your hobbies",
+              "Your favorite books"
             ],
             "correctAnswer": 1
           }
