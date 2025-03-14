@@ -1,6 +1,7 @@
 -- Create profiles table
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
+  email text not null,
   full_name text,
   avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
@@ -86,8 +87,8 @@ create policy "Users can update their own progress"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name)
-  values (new.id, new.raw_user_meta_data->>'full_name');
+  insert into public.profiles (id, email, full_name)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name');
   return new;
 end;
 $$ language plpgsql security definer;
