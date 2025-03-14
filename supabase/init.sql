@@ -11,7 +11,6 @@ create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text not null,
   full_name text,
-  avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -21,7 +20,6 @@ create table if not exists public.courses (
   id uuid default gen_random_uuid() primary key,
   title text not null,
   description text,
-  image_url text,
   level text,
   duration text,
   content jsonb,
@@ -34,7 +32,9 @@ create table if not exists public.enrollments (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.profiles(id) on delete cascade,
   course_id uuid references public.courses(id) on delete cascade,
-  status text default 'enrolled',
+  status text default 'in_progress',
+  progress integer default 0,
+  completed_modules jsonb default '[]'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique(user_id, course_id)
@@ -49,7 +49,8 @@ create table if not exists public.progress (
   completed boolean default false,
   quiz_score integer,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id, course_id, module_id)
 );
 
 -- Enable Row Level Security (RLS)
@@ -83,6 +84,10 @@ create policy "Users can enroll themselves"
   on public.enrollments for insert
   with check ( auth.uid() = user_id );
 
+create policy "Users can update their own enrollments"
+  on public.enrollments for update
+  using ( auth.uid() = user_id );
+
 create policy "Users can view their own progress"
   on public.progress for select
   using ( auth.uid() = user_id );
@@ -91,12 +96,16 @@ create policy "Users can update their own progress"
   on public.progress for insert
   with check ( auth.uid() = user_id );
 
+create policy "Users can update their own progress records"
+  on public.progress for update
+  using ( auth.uid() = user_id );
+
 -- Create function to handle user creation
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, full_name)
-  values (new.id, new.email, new.raw_user_meta_data->>'full_name');
+  insert into public.profiles (id, email)
+  values (new.id, new.email);
   return new;
 end;
 $$ language plpgsql security definer;
@@ -107,11 +116,10 @@ create or replace trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- Insert sample course data
-insert into public.courses (title, description, image_url, level, duration, content) values
+insert into public.courses (title, description, level, duration, content) values
 (
   'Digital Safety Basics',
   'Essential digital safety skills for everyone - learn how to protect yourself online',
-  '/courses/digital-safety.svg',
   'Beginner',
   '2 hours',
   '{
@@ -139,7 +147,6 @@ insert into public.courses (title, description, image_url, level, duration, cont
 (
   'Smartphone Security',
   'Learn to use your smartphone securely and protect your privacy',
-  '/courses/smartphone-security.svg',
   'Beginner',
   '1.5 hours',
   '{
@@ -167,7 +174,6 @@ insert into public.courses (title, description, image_url, level, duration, cont
 (
   'Email Safety & Scam Prevention',
   'Identify and avoid email scams and protect your inbox',
-  '/courses/email-safety.svg',
   'Beginner',
   '2 hours',
   '{
@@ -195,7 +201,6 @@ insert into public.courses (title, description, image_url, level, duration, cont
 (
   'Social Media Privacy',
   'Navigate social media safely while protecting your privacy',
-  '/courses/social-media.svg',
   'Intermediate',
   '2.5 hours',
   '{

@@ -9,6 +9,8 @@ interface Course {
   id: string;
   title: string;
   description: string;
+  level: string;
+  duration: string;
   progress: number;
 }
 
@@ -59,37 +61,50 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
 
-        // Fetch courses
-        const { data: coursesData, error: coursesError } = await supabase
-          .from('courses')
-          .select('*');
+        // Fetch enrolled courses with progress
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select(`
+            course_id,
+            progress,
+            status,
+            courses (
+              id,
+              title,
+              description,
+              level,
+              duration
+            )
+          `)
+          .eq('user_id', user?.id);
 
-        if (coursesError) throw new Error('Failed to fetch courses');
-
-        // Fetch user progress
-        const { data: progressData, error: progressError } = await supabase
-          .from('user_progress')
-          .select('*')
-          .eq('user_id', user?.id)
-          .single();
-
-        if (progressError && progressError.code !== 'PGRST116') {
-          throw new Error('Failed to fetch user progress');
-        }
+        if (enrollmentsError) throw new Error('Failed to fetch enrollments');
 
         // Transform and set the data
-        const transformedCourses = coursesData.map((course: any) => ({
-          id: course.id,
-          title: course.title,
-          description: course.description,
-          progress: progressData?.progress?.[course.id] || 0,
+        const transformedCourses = enrollmentsData.map((enrollment: any) => ({
+          id: enrollment.courses.id,
+          title: enrollment.courses.title,
+          description: enrollment.courses.description,
+          level: enrollment.courses.level,
+          duration: enrollment.courses.duration,
+          progress: enrollment.progress || 0,
         }));
+
+        // Calculate user progress
+        const completedCourses = enrollmentsData.filter(
+          (e: any) => e.status === 'completed'
+        ).length;
+
+        const totalHours = enrollmentsData.reduce((acc: number, curr: any) => {
+          const duration = parseInt(curr.courses.duration) || 0;
+          return acc + (duration * curr.progress) / 100;
+        }, 0);
 
         setCourses(transformedCourses);
         setUserProgress({
-          completedCourses: progressData?.completed_courses || 0,
-          totalHoursLearned: progressData?.total_hours || 0,
-          currentStreak: progressData?.current_streak || 0,
+          completedCourses,
+          totalHoursLearned: Math.round(totalHours * 10) / 10,
+          currentStreak: 0, // This will be implemented later with daily login tracking
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -133,6 +148,39 @@ const Dashboard = () => {
           </motion.button>
         </div>
       </motion.div>
+    );
+  }
+
+  if (courses.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            <h1 className="text-3xl font-bold mb-4">
+              Welcome to Digits, {user?.email?.split('@')[0]}!
+            </h1>
+            <p className="text-gray-400 mb-8">
+              Start your cybersecurity journey by enrolling in a course.
+            </p>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link
+                to="/courses"
+                className="inline-flex items-center px-6 py-3 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Browse Courses
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Link>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
     );
   }
 
@@ -238,6 +286,10 @@ const Dashboard = () => {
                   <div className="flex items-center mb-4">
                     <Book className="w-5 h-5 text-blue-500" />
                     <h3 className="ml-2 font-semibold">{course.title}</h3>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-400 mb-2">
+                    <span className="mr-4">{course.level}</span>
+                    <span>{course.duration}</span>
                   </div>
                   <p className="text-sm text-gray-400 mb-4 line-clamp-2">
                     {course.description}
