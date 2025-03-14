@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import toast from 'react-hot-toast';
+import Certificate from '../components/Certificate';
 
 interface Progress {
   id: string;
@@ -31,6 +32,8 @@ const CourseViewer = () => {
   const [progress, setProgress] = useState<Progress[]>([]);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
+  const [showCertificate, setShowCertificate] = useState(false);
+  const [userName, setUserName] = useState<string>('');
 
   // Sound effects
   const playSound = (type: 'hover' | 'click') => {
@@ -77,6 +80,27 @@ const CourseViewer = () => {
     fetchCourse();
   }, [courseId, supabase]);
 
+  useEffect(() => {
+    const getUserName = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile?.full_name) {
+          setUserName(profile.full_name);
+        } else {
+          setUserName(user.email);
+        }
+      }
+    };
+
+    getUserName();
+  }, [supabase]);
+
   const handleModuleComplete = async () => {
     if (!course?.content?.modules[currentModuleIndex]) return;
 
@@ -99,8 +123,15 @@ const CourseViewer = () => {
       setProgress([...progress, data]);
       toast.success('Module completed!');
 
-      // Move to next module if available
-      if (currentModuleIndex < (course.content?.modules.length || 0) - 1) {
+      // Check if all modules are completed
+      const updatedProgress = [...progress, data];
+      const allModulesCompleted = course.content.modules.every(module =>
+        updatedProgress.some(p => p.module_id === module.id)
+      );
+
+      if (allModulesCompleted) {
+        setShowCertificate(true);
+      } else if (currentModuleIndex < (course.content?.modules.length || 0) - 1) {
         setCurrentModuleIndex(prev => prev + 1);
         setShowQuiz(false);
         setQuizAnswers([]);
@@ -383,6 +414,15 @@ const CourseViewer = () => {
           </div>
         </div>
       </div>
+
+      {showCertificate && (
+        <Certificate
+          userName={userName}
+          courseName={course?.title || ''}
+          completionDate={new Date()}
+          onClose={() => setShowCertificate(false)}
+        />
+      )}
     </div>
   );
 };
