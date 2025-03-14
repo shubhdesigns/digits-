@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+}
+
+body {
+  background-color: #0a0a1f;
+  color: #fff;
+  overflow-x: hidden;
+}
+
+/* Star animation */
+.stars {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle var(--duration) linear infinite;
+  opacity: 0;
+}
+
+@keyframes twinkle {
+  0% { opacity: 0; transform: translateY(0); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(100vh); }
+}
+
+/* 3D Card Effects */
+.card-3d {
+  transform-style: preserve-3d;
+  transition: all 0.3s ease;
+}
+
+.card-3d:hover {
+  transform: translateY(-5px) rotateX(5deg);
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Digital Number Effect */
+.digital-text {
+  font-family: 'Space Mono', monospace;
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+}
+
+/* Progress Bar */
+.progress-bar {
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+}
+
+/* Neon Effects */
+.neon-text {
+  color: #fff;
+  text-shadow: 
+    0 0 5px #fff,
+    0 0 10px #fff,
+    0 0 20px var(--primary),
+    0 0 30px var(--primary),
+    0 0 40px var(--primary);
+}
+
+.neon-border {
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  box-shadow: 
+    0 0 5px rgba(99, 102, 241, 0.2),
+    0 0 10px rgba(99, 102, 241, 0.2),
+    inset 0 0 5px rgba(99, 102, 241, 0.2);
+}
+
+/* Quiz Elements */
+.quiz-option {
+  transition: all 0.3s ease;
+}
+
+.quiz-option:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--primary);
+}
+
+.quiz-option.selected {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--primary);
+}
+
+.quiz-option.correct {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+}
+
+.quiz-option.incorrect {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}
