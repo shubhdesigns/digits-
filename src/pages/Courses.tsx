@@ -1,244 +1,144 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Book, Clock, Award, Calendar, MapPin, ChevronRight } from 'lucide-react';
-import { useSupabase } from '../lib/supabaseClient';
+import { toast } from 'react-hot-toast';
+import { supabase } from '../lib/supabase';
+import CourseCard from '../components/CourseCard';
+import CourseModal from '../components/CourseModal';
+import SearchAndFilter from '../components/SearchAndFilter';
+import SkeletonCard from '../components/SkeletonCard';
 
-interface Course {
-  id: string;
-  title: string;
-  description: string;
-  level: string;
-  duration: string;
-  modules: number;
-  thumbnail_url?: string;
-  is_workshop: boolean;
-  next_session_date?: string;
-  location?: string;
-}
-
-const Courses = () => {
-  const [courses, setCourses] = useState<Course[]>([]);
+const Courses: React.FC = () => {
+  const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'courses' | 'workshops'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
   const navigate = useNavigate();
-  const supabase = useSupabase();
 
-  // Create animated stars
+  const filters = ['All', 'Beginner', 'Intermediate', 'Advanced', 'Workshops'];
+
   useEffect(() => {
-    const createStars = () => {
-      const starsContainer = document.querySelector('.stars');
-      if (!starsContainer) return;
-
-      // Clear existing stars
-      starsContainer.innerHTML = '';
-
-      // Create new stars
-      for (let i = 0; i < 50; i++) {
-        const star = document.createElement('div');
-        star.className = 'star';
-        star.style.left = `${Math.random() * 100}%`;
-        star.style.setProperty('--duration', `${3 + Math.random() * 7}s`);
-        starsContainer.appendChild(star);
-      }
-    };
-
-    createStars();
-    window.addEventListener('resize', createStars);
-    return () => window.removeEventListener('resize', createStars);
+    fetchCourses();
   }, []);
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const { data, error: fetchError } = await supabase
-          .from('courses')
-          .select('*')
-          .order('created_at', { ascending: false });
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-        if (fetchError) throw new Error('Failed to fetch courses');
-        
-        setCourses(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
+      if (error) throw error;
+      setCourses(data || []);
+    } catch (err: any) {
+      setError(err.message);
+      toast.error('Failed to load courses');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchCourses();
-  }, [supabase]);
+  const handleEnroll = async (courseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('enrollments')
+        .insert([{ course_id: courseId }]);
+
+      if (error) throw error;
+      toast.success('Successfully enrolled!');
+      navigate(`/courses/${courseId}`);
+    } catch (err: any) {
+      toast.error('Failed to enroll in course');
+    }
+  };
 
   const filteredCourses = courses.filter(course => {
-    if (filter === 'courses') return !course.is_workshop;
-    if (filter === 'workshops') return course.is_workshop;
-    return true;
+    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         course.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = activeFilter === 'All' || 
+                         course.level === activeFilter ||
+                         (activeFilter === 'Workshops' && course.is_workshop);
+    return matchesSearch && matchesFilter;
   });
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center glass p-8 rounded-lg">
-          <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Courses</h2>
-          <p className="text-gray-400">{error}</p>
+        <div className="text-center space-y-4">
+          <p className="text-error text-lg">{error}</p>
+          <button
+            onClick={fetchCourses}
+            className="btn btn-primary"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 relative">
-      <div className="stars" />
-      <div className="max-w-7xl mx-auto relative z-10">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-5xl font-bold mb-4 neon-text">DIGITS Learning Platform</h1>
-          <p className="text-xl text-gray-400 mb-8 digital-text">
-            Empowering seniors with digital literacy skills through our comprehensive courses and workshops
-          </p>
-          <div className="flex justify-center gap-4 mb-8">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setFilter('all')}
-              className={`px-6 py-2 rounded-lg transition-all duration-300 ${
-                filter === 'all'
-                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/50'
-                  : 'glass text-gray-400 hover:bg-primary-900/30'
-              }`}
-            >
-              All
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setFilter('courses')}
-              className={`px-6 py-2 rounded-lg transition-all duration-300 ${
-                filter === 'courses'
-                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/50'
-                  : 'glass text-gray-400 hover:bg-primary-900/30'
-              }`}
-            >
-              Self-Paced Courses
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setFilter('workshops')}
-              className={`px-6 py-2 rounded-lg transition-all duration-300 ${
-                filter === 'workshops'
-                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/50'
-                  : 'glass text-gray-400 hover:bg-primary-900/30'
-              }`}
-            >
-              Live Workshops
-            </motion.button>
-          </div>
-        </motion.div>
+    <div className="container mx-auto px-4 py-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-12 text-center"
+      >
+        <h1 className="text-4xl font-bold mb-4">Explore Courses</h1>
+        <p className="text-white/70 max-w-2xl mx-auto">
+          Discover our comprehensive selection of courses designed to enhance your digital literacy skills.
+          From beginner to advanced levels, find the perfect learning path for you.
+        </p>
+      </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredCourses.map((course, index) => (
+      <SearchAndFilter
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        filters={filters}
+      />
+
+      <div className="course-grid">
+        <AnimatePresence mode="wait">
+          {loading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))
+          ) : filteredCourses.length > 0 ? (
+            filteredCourses.map((course) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                onClick={() => setSelectedCourse(course)}
+              />
+            ))
+          ) : (
             <motion.div
-              key={course.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.02, y: -5 }}
-              className="card-3d cursor-pointer"
-              onClick={() => navigate(`/courses/${course.id}`)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="col-span-full text-center py-12"
             >
-              {course.thumbnail_url ? (
-                <img
-                  src={course.thumbnail_url}
-                  alt={course.title}
-                  className="w-full h-48 object-cover"
-                />
-              ) : (
-                <div className={`w-full h-48 bg-gradient-to-br ${
-                  course.is_workshop 
-                    ? 'from-purple-600/80 to-pink-600/80' 
-                    : 'from-primary-600/80 to-primary-800/80'
-                } flex items-center justify-center backdrop-blur`}>
-                  <Book className="w-16 h-16 text-white/90" />
-                </div>
-              )}
-              
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold digital-text">{course.title}</h3>
-                  {course.is_workshop && (
-                    <span className="px-3 py-1 bg-purple-600/20 text-purple-400 text-sm rounded-full digital-text">
-                      Workshop
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-400 line-clamp-2">{course.description}</p>
-                
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between text-gray-400">
-                    <div className="flex items-center">
-                      <Award className="w-4 h-4 mr-2" />
-                      {course.level}
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-2" />
-                      {course.duration}
-                    </div>
-                  </div>
-                  
-                  {course.is_workshop && course.next_session_date && (
-                    <div className="flex items-center text-purple-400">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      {course.next_session_date}
-                    </div>
-                  )}
-                  
-                  {course.is_workshop && course.location && (
-                    <div className="flex items-center text-purple-400">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {course.location}
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 flex justify-end">
-                  <motion.div
-                    whileHover={{ x: 5 }}
-                    className="text-primary-500 flex items-center"
-                  >
-                    Start Learning <ChevronRight className="w-4 h-4 ml-1" />
-                  </motion.div>
-                </div>
-              </div>
+              <p className="text-white/70">No courses found matching your criteria.</p>
             </motion.div>
-          ))}
-        </div>
-
-        {filteredCourses.length === 0 && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12 glass rounded-lg"
-          >
-            <p className="text-gray-400">No {filter === 'workshops' ? 'workshops' : 'courses'} available at the moment.</p>
-          </motion.div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {selectedCourse && (
+          <CourseModal
+            course={selectedCourse}
+            onClose={() => setSelectedCourse(null)}
+            onEnroll={() => handleEnroll(selectedCourse.id)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

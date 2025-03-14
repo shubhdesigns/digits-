@@ -1,13 +1,16 @@
 {
-  "rewrites": [
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/[^.]+",
+      "dest": "/",
+      "status": 200
     }
   ],
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "vite",
-  "outputDirectory": "dist"
+  "env": {
+    "VITE_SUPABASE_URL": "https://vppohpcmpgysabrvcsfm.supabase.co",
+    "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcG9ocGNtcGd5c2FicnZjc2ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDg3OTQ3NzAsImV4cCI6MjAyNDM3MDc3MH0.0OX6OJQFptDrZzQyxwXAP3MU3RZwKdZwpXfPYupZAYI"
+  }
 } 

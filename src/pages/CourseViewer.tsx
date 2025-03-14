@@ -1,367 +1,385 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, CheckCircle, Book, Award } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { FaRocket, FaClock, FaUserGraduate, FaBook, FaStar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { useSupabase } from '../lib/supabaseClient';
-import { useAuthStore } from '../store/authStore';
+import type { Course } from '../components/CourseCard';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import toast from 'react-hot-toast';
 
-interface Module {
+interface Progress {
   id: string;
-  title: string;
-  order_index: number;
-  content: string;
-  quiz: {
-    questions: {
-      id: number;
-      question: string;
-      options: string[];
-      correctAnswer: number;
-    }[];
-  };
-}
-
-interface Course {
-  id: string;
-  title: string;
-  description: string;
-  level: string;
-  duration: string;
-  total_modules: number;
+  user_id: string;
+  course_id: string;
+  module_id: string;
+  completed: boolean;
+  quiz_score?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 const CourseViewer = () => {
   const { courseId } = useParams<{ courseId: string }>();
+  const navigate = useNavigate();
+  const supabase = useSupabase();
   const [course, setCourse] = useState<Course | null>(null);
-  const [modules, setModules] = useState<Module[]>([]);
-  const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
-  const [userProgress, setUserProgress] = useState<{
-    completed_modules: string[];
-    quiz_scores: Record<string, number>;
-    completion_percentage: number;
-  }>({
-    completed_modules: [],
-    quiz_scores: {},
-    completion_percentage: 0,
-  });
-  const [quizMode, setQuizMode] = useState(false);
-  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
-  const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
+  const [progress, setProgress] = useState<Progress[]>([]);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
 
-  const supabase = useSupabase();
-  const { user } = useAuthStore();
+  // Sound effects
+  const playSound = (type: 'hover' | 'click') => {
+    const audio = new Audio(`/${type}.mp3`);
+    audio.volume = type === 'hover' ? 0.2 : 0.3;
+    audio.play().catch(() => {});
+  };
 
   useEffect(() => {
-    const fetchCourseData = async () => {
+    const fetchCourse = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Fetch course details
-        const { data: courseData, error: courseError } = await supabase
+        const { data: course, error: courseError } = await supabase
           .from('courses')
           .select('*')
           .eq('id', courseId)
           .single();
 
-        if (courseError) throw new Error('Failed to fetch course');
+        if (courseError) throw courseError;
+        if (!course) throw new Error('Course not found');
 
-        // Fetch modules
-        const { data: modulesData, error: modulesError } = await supabase
-          .from('modules')
+        setCourse(course);
+
+        // Fetch user's progress
+        const { data: progress, error: progressError } = await supabase
+          .from('progress')
           .select('*')
           .eq('course_id', courseId)
-          .order('order_index');
+          .order('created_at', { ascending: true });
 
-        if (modulesError) throw new Error('Failed to fetch modules');
+        if (progressError) throw progressError;
+        setProgress(progress || []);
 
-        // Fetch user progress if logged in
-        if (user) {
-          const { data: progressData, error: progressError } = await supabase
-            .from('user_progress')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('course_id', courseId)
-            .single();
-
-          if (!progressError && progressData) {
-            setUserProgress({
-              completed_modules: progressData.completed_modules || [],
-              quiz_scores: progressData.quiz_scores || {},
-              completion_percentage: progressData.completion_percentage || 0,
-            });
-          }
-        }
-
-        setCourse(courseData);
-        setModules(modulesData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
+        toast.error('Failed to load course content');
       } finally {
         setLoading(false);
       }
     };
 
-    if (courseId) {
-      fetchCourseData();
-    }
-  }, [courseId, supabase, user]);
+    fetchCourse();
+  }, [courseId, supabase]);
 
-  const updateProgress = async (moduleId: string, quizScore?: number) => {
-    if (!user) return;
+  const handleModuleComplete = async () => {
+    if (!course?.content?.modules[currentModuleIndex]) return;
 
     try {
-      const newCompletedModules = [...userProgress.completed_modules];
-      if (!newCompletedModules.includes(moduleId)) {
-        newCompletedModules.push(moduleId);
-      }
-
-      const newQuizScores = {
-        ...userProgress.quiz_scores,
-        ...(quizScore !== undefined && { [moduleId]: quizScore }),
-      };
-
-      const completion_percentage = Math.round(
-        (newCompletedModules.length / modules.length) * 100
-      );
-
-      const { error } = await supabase
-        .from('user_progress')
-        .upsert({
-          user_id: user.id,
+      const moduleId = course.content.modules[currentModuleIndex].id;
+      
+      const { data, error } = await supabase
+        .from('progress')
+        .insert([{
           course_id: courseId,
-          completed_modules: newCompletedModules,
-          quiz_scores: newQuizScores,
-          completion_percentage,
-          last_accessed: new Date().toISOString(),
-        });
+          module_id: moduleId,
+          completed: true,
+          quiz_score: showQuiz ? calculateQuizScore() : null
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setUserProgress({
-        completed_modules: newCompletedModules,
-        quiz_scores: newQuizScores,
-        completion_percentage,
-      });
+      setProgress([...progress, data]);
+      toast.success('Module completed!');
 
-      // Update user stats if course is completed
-      if (completion_percentage === 100) {
-        const { error: statsError } = await supabase
-          .from('user_stats')
-          .upsert({
-            user_id: user.id,
-            completed_courses: 1,
-            total_hours: 1,
-            current_streak: 1,
-            last_activity_date: new Date().toISOString().split('T')[0],
-          });
-
-        if (statsError) throw statsError;
+      // Move to next module if available
+      if (currentModuleIndex < (course.content?.modules.length || 0) - 1) {
+        setCurrentModuleIndex(prev => prev + 1);
+        setShowQuiz(false);
+        setQuizAnswers([]);
       }
     } catch (err) {
-      console.error('Error updating progress:', err);
+      toast.error('Failed to save progress');
     }
   };
 
-  const handleQuizSubmit = () => {
-    if (!modules[currentModuleIndex]?.quiz) return;
-
-    const questions = modules[currentModuleIndex].quiz.questions;
-    const correctAnswers = questions.reduce((count, q, index) => {
-      return count + (selectedAnswers[index] === q.correctAnswer ? 1 : 0);
+  const calculateQuizScore = () => {
+    if (!course?.content?.modules[currentModuleIndex].quiz) return 0;
+    
+    const quiz = course.content.modules[currentModuleIndex].quiz;
+    const correctAnswers = quiz.reduce((acc, q, idx) => {
+      return acc + (quizAnswers[idx] === q.correctAnswer ? 1 : 0);
     }, 0);
 
-    const score = Math.round((correctAnswers / questions.length) * 100);
-    updateProgress(modules[currentModuleIndex].id, score);
-    setQuizSubmitted(true);
-  };
-
-  const nextModule = () => {
-    if (currentModuleIndex < modules.length - 1) {
-      setCurrentModuleIndex(currentModuleIndex + 1);
-      setQuizMode(false);
-      setSelectedAnswers([]);
-      setQuizSubmitted(false);
-    }
-  };
-
-  const prevModule = () => {
-    if (currentModuleIndex > 0) {
-      setCurrentModuleIndex(currentModuleIndex - 1);
-      setQuizMode(false);
-      setSelectedAnswers([]);
-      setQuizSubmitted(false);
-    }
+    return Math.round((correctAnswers / quiz.length) * 100);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--space-bg)]">
+        <div className="loading"></div>
+        <div className="ml-4 terminal-text">LOADING COURSE DATA...</div>
       </div>
     );
   }
 
-  if (error || !course || !modules.length) {
+  if (error || !course) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Course</h2>
-          <p className="text-gray-400">{error || 'Course not found'}</p>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--space-bg)]">
+        <div className="text-center p-8 rounded-lg glitch" title="ERROR">
+          <h2 className="text-2xl font-bold text-red-500 mb-4 terminal-text">COURSE NOT FOUND</h2>
+          <p className="text-[var(--terminal-green)]">{error}</p>
+          <motion.button
+            className="pixel-btn mt-4"
+            onClick={() => navigate('/courses')}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            RETURN TO COURSES
+          </motion.button>
         </div>
       </div>
     );
   }
 
-  const currentModule = modules[currentModuleIndex];
+  const currentModule = course.content?.modules[currentModuleIndex];
+  const isModuleCompleted = progress.some(p => p.module_id === currentModule?.id);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Course Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{course.title}</h1>
-          <div className="flex items-center text-gray-400 gap-4">
-            <span className="flex items-center">
-              <Book className="w-4 h-4 mr-1" />
-              {course.level}
-            </span>
-            <span>•</span>
-            <span>{course.duration}</span>
-            <span>•</span>
-            <span className="flex items-center">
-              <Award className="w-4 h-4 mr-1" />
-              {userProgress.completion_percentage}% Complete
-            </span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[var(--space-bg)] text-white">
+      <div className="stars" />
+      <div className="scanline" />
 
-        {/* Module Navigation */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 mb-8">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={prevModule}
-              disabled={currentModuleIndex === 0}
-              className={`flex items-center ${
-                currentModuleIndex === 0
-                  ? 'text-gray-600 cursor-not-allowed'
-                  : 'text-blue-500 hover:text-blue-400'
-              }`}
-            >
-              <ChevronLeft className="w-5 h-5 mr-1" />
-              Previous
-            </button>
-            <span className="text-gray-400">
-              Module {currentModuleIndex + 1} of {modules.length}
-            </span>
-            <button
-              onClick={nextModule}
-              disabled={currentModuleIndex === modules.length - 1}
-              className={`flex items-center ${
-                currentModuleIndex === modules.length - 1
-                  ? 'text-gray-600 cursor-not-allowed'
-                  : 'text-blue-500 hover:text-blue-400'
-              }`}
-            >
-              Next
-              <ChevronRight className="w-5 h-5 ml-1" />
-            </button>
-          </div>
-        </div>
-
-        {/* Module Content */}
-        <motion.div
-          key={currentModule.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 mb-8"
-        >
-          <h2 className="text-2xl font-bold mb-6">{currentModule.title}</h2>
-          {!quizMode ? (
-            <>
-              <div className="prose prose-invert max-w-none">
-                <ReactMarkdown>{currentModule.content}</ReactMarkdown>
+      {/* Course Header */}
+      <div className="relative h-64 overflow-hidden">
+        <img
+          src={course.image_url}
+          alt={course.title}
+          className="w-full h-full object-cover"
+          style={{ imageRendering: 'pixelated' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+        <div className="absolute bottom-8 left-8 right-8">
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+          >
+            <h1 className="text-4xl font-bold mb-4 terminal-text glitch" title={course.title}>
+              {course.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-4 text-[var(--terminal-green)]">
+              <div className="flex items-center gap-2">
+                <FaClock className="text-[var(--primary)]" />
+                {course.duration}
               </div>
-              {currentModule.quiz && (
-                <button
-                  onClick={() => setQuizMode(true)}
-                  className="mt-8 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
-                >
-                  Take Quiz
-                </button>
-              )}
-            </>
-          ) : (
-            <div className="space-y-8">
-              {currentModule.quiz.questions.map((question, qIndex) => (
-                <div key={question.id} className="space-y-4">
-                  <h3 className="text-xl font-semibold">
-                    {qIndex + 1}. {question.question}
-                  </h3>
-                  <div className="space-y-2">
-                    {question.options.map((option, oIndex) => (
-                      <button
-                        key={oIndex}
-                        onClick={() => {
-                          if (!quizSubmitted) {
-                            const newAnswers = [...selectedAnswers];
-                            newAnswers[qIndex] = oIndex;
-                            setSelectedAnswers(newAnswers);
-                          }
-                        }}
-                        className={`w-full p-4 rounded-lg text-left transition-colors ${
-                          selectedAnswers[qIndex] === oIndex
-                            ? quizSubmitted
-                              ? oIndex === question.correctAnswer
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-red-500/20 text-red-400'
-                              : 'bg-blue-500/20 text-blue-400'
-                            : 'bg-slate-700/50 hover:bg-slate-700'
-                        }`}
-                        disabled={quizSubmitted}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {!quizSubmitted ? (
-                <button
-                  onClick={handleQuizSubmit}
-                  disabled={selectedAnswers.length !== currentModule.quiz.questions.length}
-                  className="mt-8 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-                >
-                  Submit Quiz
-                </button>
-              ) : (
-                <button
-                  onClick={nextModule}
-                  className="mt-8 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors flex items-center"
-                >
-                  Continue to Next Module
-                  <ChevronRight className="w-5 h-5 ml-1" />
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                <FaUserGraduate className="text-[var(--primary)]" />
+                {course.level}
+              </div>
+              <div className="flex items-center gap-2">
+                <FaBook className="text-[var(--primary)]" />
+                {course.content?.modules.length || 0} Modules
+              </div>
             </div>
-          )}
-        </motion.div>
+          </motion.div>
+        </div>
+      </div>
 
-        {/* Module Progress */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Course Progress</span>
-            <span className="text-sm text-blue-500">
-              {userProgress.completion_percentage}%
-            </span>
+      {/* Course Content */}
+      <div className="max-w-7xl mx-auto px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Module Navigation */}
+          <div className="md:col-span-1">
+            <div className="retro-card p-4 sticky top-4">
+              <h3 className="text-lg font-bold mb-4 terminal-text">MODULES</h3>
+              <div className="space-y-2">
+                {course.content?.modules.map((module, index) => {
+                  const isCompleted = progress.some(p => p.module_id === module.id);
+                  const isCurrent = index === currentModuleIndex;
+
+                  return (
+                    <motion.button
+                      key={module.id}
+                      className={`w-full text-left p-2 pixel-border ${
+                        isCurrent ? 'bg-[var(--terminal-green)] text-black' :
+                        isCompleted ? 'text-[var(--terminal-green)]' : 'text-white'
+                      }`}
+                      onClick={() => {
+                        playSound('click');
+                        setCurrentModuleIndex(index);
+                        setShowQuiz(false);
+                        setQuizAnswers([]);
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FaStar className={isCurrent ? 'text-black' : 'text-[var(--primary)]'} />
+                        <span className="text-sm truncate">{module.title}</span>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <div className="h-2 bg-slate-700 rounded-full">
-            <div
-              className="h-2 bg-blue-500 rounded-full transition-all duration-300"
-              style={{ width: `${userProgress.completion_percentage}%` }}
-            ></div>
+
+          {/* Module Content */}
+          <div className="md:col-span-3">
+            <motion.div
+              key={currentModuleIndex}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="retro-card p-8"
+            >
+              {!showQuiz ? (
+                <>
+                  <ReactMarkdown
+                    className="prose prose-invert max-w-none"
+                    components={{
+                      code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={atomDark}
+                            language={match[1]}
+                            PreTag="div"
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {currentModule?.content || ''}
+                  </ReactMarkdown>
+
+                  {currentModule?.quiz && !isModuleCompleted && (
+                    <motion.button
+                      className="pixel-btn mt-8"
+                      onClick={() => {
+                        playSound('click');
+                        setShowQuiz(true);
+                      }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Take Quiz
+                    </motion.button>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-8">
+                  <h3 className="text-2xl font-bold terminal-text mb-6">Module Quiz</h3>
+                  {currentModule?.quiz.map((question, index) => (
+                    <div key={index} className="space-y-4">
+                      <p className="text-lg text-[var(--terminal-green)]">{question.question}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {question.options.map((option, optionIndex) => (
+                          <motion.button
+                            key={optionIndex}
+                            className={`p-4 pixel-border text-left ${
+                              quizAnswers[index] === optionIndex
+                                ? 'bg-[var(--terminal-green)] text-black'
+                                : ''
+                            }`}
+                            onClick={() => {
+                              playSound('click');
+                              const newAnswers = [...quizAnswers];
+                              newAnswers[index] = optionIndex;
+                              setQuizAnswers(newAnswers);
+                            }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            {option}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between mt-8">
+                <motion.button
+                  className="pixel-btn"
+                  onClick={() => {
+                    playSound('click');
+                    if (currentModuleIndex > 0) {
+                      setCurrentModuleIndex(prev => prev - 1);
+                      setShowQuiz(false);
+                      setQuizAnswers([]);
+                    }
+                  }}
+                  disabled={currentModuleIndex === 0}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <FaChevronLeft className="mr-2" />
+                  Previous
+                </motion.button>
+
+                {!isModuleCompleted && (
+                  <motion.button
+                    className="pixel-btn"
+                    onClick={() => {
+                      playSound('click');
+                      if (currentModule?.quiz && !showQuiz) {
+                        setShowQuiz(true);
+                      } else {
+                        handleModuleComplete();
+                      }
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {showQuiz ? (
+                      <>
+                        Submit Quiz
+                        <FaRocket className="ml-2" />
+                      </>
+                    ) : (
+                      <>
+                        Complete Module
+                        <FaChevronRight className="ml-2" />
+                      </>
+                    )}
+                  </motion.button>
+                )}
+
+                {currentModuleIndex < (course.content?.modules.length || 0) - 1 && (
+                  <motion.button
+                    className="pixel-btn"
+                    onClick={() => {
+                      playSound('click');
+                      setCurrentModuleIndex(prev => prev + 1);
+                      setShowQuiz(false);
+                      setQuizAnswers([]);
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Next
+                    <FaChevronRight className="ml-2" />
+                  </motion.button>
+                )}
+              </div>
+            </motion.div>
           </div>
         </div>
       </div>
