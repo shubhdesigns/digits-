@@ -276,14 +276,15 @@ const CourseViewer = () => {
                   <ReactMarkdown
                     className="prose prose-invert max-w-none"
                     components={{
-                      code({ node, inline, className, children, ...props }) {
+                      code({ className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || '');
-                        return !inline && match ? (
+                        const isInline = !match;
+                        return !isInline && match ? (
                           <SyntaxHighlighter
-                            style={atomDark}
+                            {...props}
                             language={match[1]}
                             PreTag="div"
-                            {...props}
+                            style={atomDark as any}
                           >
                             {String(children).replace(/\n$/, '')}
                           </SyntaxHighlighter>
