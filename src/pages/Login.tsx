@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Lock } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { Shield } from 'lucide-react';
+import { signIn } from '../lib/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { motion } from 'framer-motion';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { signIn, loading } = useAuthStore();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -17,11 +16,17 @@ const Login = () => {
     e.preventDefault();
     
     try {
-      await signIn(formData.email, formData.password);
-      toast.success('Welcome back!');
+      setLoading(true);
+      const { error } = await signIn(formData.email, formData.password);
+
+      if (error) throw error;
+
+      toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to sign in');
+      toast.error(error.message || 'An error occurred during login');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,108 +38,71 @@ const Login = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-900 to-slate-800"
-    >
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen pt-20 pb-12 flex flex-col items-center">
+      <div className="max-w-md w-full space-y-8 bg-slate-800/50 p-8 rounded-lg backdrop-blur-sm">
         <div className="text-center">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center"
-          >
-            <Lock className="h-8 w-8 text-white" />
-          </motion.div>
-          <h2 className="mt-6 text-3xl font-extrabold text-white">Welcome back</h2>
-          <p className="mt-2 text-sm text-gray-400">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-blue-500 hover:text-blue-400">
-              Sign up for free
-            </Link>
-          </p>
+          <Shield className="mx-auto h-12 w-12 text-blue-500" />
+          <h2 className="mt-6 text-3xl font-bold">Welcome Back</h2>
+          <p className="mt-2 text-gray-300">Sign in to your account</p>
         </div>
-
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-medium">
                 Email address
               </label>
               <input
                 id="email"
                 name="email"
                 type="email"
-                autoComplete="email"
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800/50 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm"
-                placeholder="Email address"
+                className="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-sm font-medium">
                 Password
               </label>
               <input
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800/50 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm"
-                placeholder="Password"
+                className="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-400">
-                Remember me
-              </label>
-            </div>
-
             <div className="text-sm">
-              <Link to="/forgot-password" className="font-medium text-blue-500 hover:text-blue-400">
+              <a href="/forgot-password" className="text-blue-500 hover:text-blue-400">
                 Forgot your password?
-              </Link>
+              </a>
             </div>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
             type="submit"
             disabled={loading}
-            className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white ${
-              loading ? 'bg-blue-600/50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            className={`w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {loading ? (
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              'Sign in'
-            )}
-          </motion.button>
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
         </form>
+        <div className="text-center">
+          <p className="text-sm">
+            Don't have an account?{' '}
+            <a href="/register" className="text-blue-500 hover:text-blue-400">
+              Sign up
+            </a>
+          </p>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

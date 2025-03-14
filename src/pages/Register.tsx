@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shield } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { signUp } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 
@@ -26,27 +26,10 @@ const Register = () => {
     try {
       setLoading(true);
       
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      const { error } = await signUp(formData.email, formData.password, fullName);
 
-      if (authError) throw authError;
-
-      // Create user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: authData.user?.id,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            email: formData.email,
-          }
-        ]);
-
-      if (profileError) throw profileError;
+      if (error) throw error;
 
       toast.success('Registration successful! Please check your email to verify your account.');
       navigate('/login');
@@ -127,6 +110,7 @@ const Register = () => {
                 name="password"
                 type="password"
                 required
+                minLength={6}
                 value={formData.password}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -141,6 +125,7 @@ const Register = () => {
                 name="confirmPassword"
                 type="password"
                 required
+                minLength={6}
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -150,9 +135,10 @@ const Register = () => {
 
           <button
             type="submit"
-            className="w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            disabled={loading}
+            className={`w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            Create Account
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
         <div className="text-center">
