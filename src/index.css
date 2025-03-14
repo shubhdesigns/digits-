@@ -5,15 +5,18 @@
 :root {
   --primary: #6366f1;
   --primary-dark: #4f46e5;
+  --space-bg: #0a0a1f;
+  --space-card: #13132d;
 }
 
 body {
-  background-color: #0a0a1f;
+  background-color: var(--space-bg);
   color: #fff;
   overflow-x: hidden;
+  position: relative;
 }
 
-/* Star animation */
+/* Enhanced Star Animation */
 .stars {
   position: fixed;
   top: 0;
@@ -21,7 +24,7 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
 .star {
@@ -40,36 +43,70 @@ body {
   100% { opacity: 0; transform: translateY(100vh); }
 }
 
-/* 3D Card Effects */
+/* Enhanced 3D Card Effects */
 .card-3d {
   transform-style: preserve-3d;
-  transition: all 0.3s ease;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--space-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  transition: 0.5s;
 }
 
 .card-3d:hover {
-  transform: translateY(-5px) rotateX(5deg);
+  transform: translateY(-10px) rotateX(5deg) rotateY(5deg);
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 
+    0 0 20px rgba(99, 102, 241, 0.2),
+    0 0 30px rgba(99, 102, 241, 0.1);
 }
 
-/* Glassmorphism */
+.card-3d:hover::before {
+  left: 100%;
+}
+
+/* Modern Glassmorphism */
 .glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(19, 19, 45, 0.7);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 /* Digital Number Effect */
 .digital-text {
   font-family: 'Space Mono', monospace;
   text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+  letter-spacing: 0.05em;
 }
 
 /* Progress Bar */
 .progress-bar {
-  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+  background: linear-gradient(90deg, 
+    rgba(99, 102, 241, 0.8) 0%, 
+    rgba(79, 70, 229, 0.9) 100%
+  );
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+  border-radius: 4px;
 }
 
-/* Neon Effects */
+/* Enhanced Neon Effects */
 .neon-text {
   color: #fff;
   text-shadow: 
@@ -91,24 +128,60 @@ body {
 /* Quiz Elements */
 .quiz-option {
   transition: all 0.3s ease;
+  background: rgba(19, 19, 45, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .quiz-option:hover {
   background: rgba(99, 102, 241, 0.1);
   border-color: var(--primary);
+  transform: translateY(-2px);
 }
 
 .quiz-option.selected {
   background: rgba(99, 102, 241, 0.2);
   border-color: var(--primary);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
 }
 
 .quiz-option.correct {
   background: rgba(34, 197, 94, 0.2);
   border-color: #22c55e;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
 }
 
 .quiz-option.incorrect {
   background: rgba(239, 68, 68, 0.2);
   border-color: #ef4444;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+}
+
+/* Course Card Enhancements */
+.course-card {
+  background: var(--space-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.course-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--primary);
+  box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.2),
+    0 0 15px rgba(99, 102, 241, 0.3);
+}
+
+/* Module Navigation */
+.module-nav {
+  background: rgba(19, 19, 45, 0.95);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+/* Content Area */
+.content-area {
+  background: rgba(19, 19, 45, 0.7);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }

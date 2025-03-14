@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Book, Clock, Award, Calendar, MapPin } from 'lucide-react';
+import { Book, Clock, Award, Calendar, MapPin, ChevronRight } from 'lucide-react';
 import { useSupabase } from '../lib/supabaseClient';
 
 interface Course {
@@ -24,6 +24,30 @@ const Courses = () => {
   const [filter, setFilter] = useState<'all' | 'courses' | 'workshops'>('all');
   const navigate = useNavigate();
   const supabase = useSupabase();
+
+  // Create animated stars
+  useEffect(() => {
+    const createStars = () => {
+      const starsContainer = document.querySelector('.stars');
+      if (!starsContainer) return;
+
+      // Clear existing stars
+      starsContainer.innerHTML = '';
+
+      // Create new stars
+      for (let i = 0; i < 50; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.setProperty('--duration', `${3 + Math.random() * 7}s`);
+        starsContainer.appendChild(star);
+      }
+    };
+
+    createStars();
+    window.addEventListener('resize', createStars);
+    return () => window.removeEventListener('resize', createStars);
+  }, []);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -58,7 +82,7 @@ const Courses = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
       </div>
     );
   }
@@ -66,7 +90,7 @@ const Courses = () => {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center glass p-8 rounded-lg">
           <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Courses</h2>
           <p className="text-gray-400">{error}</p>
         </div>
@@ -75,55 +99,67 @@ const Courses = () => {
   }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">DIGITS Learning Platform</h1>
-          <p className="text-xl text-gray-400 mb-8">
+    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 relative">
+      <div className="stars" />
+      <div className="max-w-7xl mx-auto relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-5xl font-bold mb-4 neon-text">DIGITS Learning Platform</h1>
+          <p className="text-xl text-gray-400 mb-8 digital-text">
             Empowering seniors with digital literacy skills through our comprehensive courses and workshops
           </p>
           <div className="flex justify-center gap-4 mb-8">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setFilter('all')}
-              className={`px-6 py-2 rounded-lg transition-colors ${
+              className={`px-6 py-2 rounded-lg transition-all duration-300 ${
                 filter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800/50 text-gray-400 hover:bg-slate-700/50'
+                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/50'
+                  : 'glass text-gray-400 hover:bg-primary-900/30'
               }`}
             >
               All
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setFilter('courses')}
-              className={`px-6 py-2 rounded-lg transition-colors ${
+              className={`px-6 py-2 rounded-lg transition-all duration-300 ${
                 filter === 'courses'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800/50 text-gray-400 hover:bg-slate-700/50'
+                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/50'
+                  : 'glass text-gray-400 hover:bg-primary-900/30'
               }`}
             >
               Self-Paced Courses
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setFilter('workshops')}
-              className={`px-6 py-2 rounded-lg transition-colors ${
+              className={`px-6 py-2 rounded-lg transition-all duration-300 ${
                 filter === 'workshops'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800/50 text-gray-400 hover:bg-slate-700/50'
+                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/50'
+                  : 'glass text-gray-400 hover:bg-primary-900/30'
               }`}
             >
               Live Workshops
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredCourses.map((course) => (
+          {filteredCourses.map((course, index) => (
             <motion.div
               key={course.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.02 }}
-              className="bg-slate-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg cursor-pointer"
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.02, y: -5 }}
+              className="card-3d cursor-pointer"
               onClick={() => navigate(`/courses/${course.id}`)}
             >
               {course.thumbnail_url ? (
@@ -135,49 +171,58 @@ const Courses = () => {
               ) : (
                 <div className={`w-full h-48 bg-gradient-to-br ${
                   course.is_workshop 
-                    ? 'from-purple-600 to-pink-600' 
-                    : 'from-blue-600 to-purple-600'
-                } flex items-center justify-center`}>
-                  <Book className="w-16 h-16 text-white/80" />
+                    ? 'from-purple-600/80 to-pink-600/80' 
+                    : 'from-primary-600/80 to-primary-800/80'
+                } flex items-center justify-center backdrop-blur`}>
+                  <Book className="w-16 h-16 text-white/90" />
                 </div>
               )}
               
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-semibold">{course.title}</h3>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold digital-text">{course.title}</h3>
                   {course.is_workshop && (
-                    <span className="px-2 py-1 bg-purple-600/20 text-purple-400 text-sm rounded-full">
+                    <span className="px-3 py-1 bg-purple-600/20 text-purple-400 text-sm rounded-full digital-text">
                       Workshop
                     </span>
                   )}
                 </div>
-                <p className="text-gray-400 mb-4 line-clamp-2">{course.description}</p>
+                <p className="text-gray-400 line-clamp-2">{course.description}</p>
                 
-                <div className="space-y-2 text-sm text-gray-400">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between text-gray-400">
                     <div className="flex items-center">
-                      <Award className="w-4 h-4 mr-1" />
+                      <Award className="w-4 h-4 mr-2" />
                       {course.level}
                     </div>
                     <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
+                      <Clock className="w-4 h-4 mr-2" />
                       {course.duration}
                     </div>
                   </div>
                   
                   {course.is_workshop && course.next_session_date && (
                     <div className="flex items-center text-purple-400">
-                      <Calendar className="w-4 h-4 mr-1" />
+                      <Calendar className="w-4 h-4 mr-2" />
                       {course.next_session_date}
                     </div>
                   )}
                   
                   {course.is_workshop && course.location && (
                     <div className="flex items-center text-purple-400">
-                      <MapPin className="w-4 h-4 mr-1" />
+                      <MapPin className="w-4 h-4 mr-2" />
                       {course.location}
                     </div>
                   )}
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <motion.div
+                    whileHover={{ x: 5 }}
+                    className="text-primary-500 flex items-center"
+                  >
+                    Start Learning <ChevronRight className="w-4 h-4 ml-1" />
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
@@ -185,9 +230,13 @@ const Courses = () => {
         </div>
 
         {filteredCourses.length === 0 && (
-          <div className="text-center py-12">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12 glass rounded-lg"
+          >
             <p className="text-gray-400">No {filter === 'workshops' ? 'workshops' : 'courses'} available at the moment.</p>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>
